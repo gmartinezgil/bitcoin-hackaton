@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Investment Comparison | MXN</title>
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="icon" href="data:,">
+</head>
+<body>
+
+<div class="dashboard-container">
+    <div class="header">
+        <h2>Where does your money earn more?</h2>
+        <p>Comparing Nominal vs. Real Returns: Bitcoin vs. CETES vs. AFORE</p>
+    </div>
+
+    <div id="loading">Fetching historical data from Banxico & CONSAR...</div>
+
+    <div class="chart-wrapper">
+        <canvas id="investmentChart"></canvas>
+    </div>
+
+    <div class="controls">
+        <label id="dateLabel"><strong>Start Date:</strong> Loading...</label><br>
+        <input type="range" id="timeSlider" min="0" max="100" value="0" disabled>
+        <p><small>Adjust the slider to see how inflation and devaluation affect different entry points.</small></p>
+    </div>
+
+    <div class="info-box">
+        <h3>📖 How to Read This Chart</h3>
+        <p><strong>The Monthly Savings Race:</strong> This chart simulates investing a fixed amount (like $1,000 MXN)
+            every single month, starting from your chosen date. It shows your total accumulated wealth over time.</p>
+        <ul>
+            <li>🟢 <strong>CETES & 🔵 AFORE:</strong> The <strong>Anchor</strong>. These grow slowly and predictably
+                through compound interest. This is your foundation for retirement and emergencies.
+            </li>
+            <li>🟠 <strong>Bitcoin:</strong> The <strong>Rocket</strong>. It experiences extreme highs and lows. While it
+                carries more risk, buying a little bit every month (DCA) smooths out the crashes and captures the
+                massive growth peaks.
+            </li>
+            <li>🟣 <strong>USD/MXN (Dashed Line):</strong> The <strong>Shield</strong>. Bitcoin is priced in dollars. If
+                the Mexican Peso loses value (the dashed line goes up), your Bitcoin actually becomes worth more in
+                Pesos, protecting your purchasing power!
+            </li>
+        </ul>
+        <div class="advisory-note">
+            <strong>💡 Street Advice for your Golden Years:</strong> Don't pick just one! Let your employer build your
+            AFORE, use CETES for cash you might need next year, and DCA a small amount into Bitcoin every month to
+            protect against inflation and currency devaluation over the next decade.
+        </div>
+    </div>
+</div>
+
+<script src="js/dashboard.js"></script>
+</body>
+</html>
