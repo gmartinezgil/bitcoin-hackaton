@@ -1,5 +1,6 @@
 let chartInstance = null;
 let normalizedData = [];
+let barChartInstance = null;
 
 // 1. Fetch data from the Java Backend
 async function initDashboard() {
@@ -116,6 +117,10 @@ function renderChart(startIndex) {
     let totalCetesBalance = 0;
     let accumulatedBtcAmount = 0; // The actual fraction of a coin you own
 
+    // NEW: Track purchasing power of cash under the mattress
+    let mattressPurchasingPower = 0;
+    const annualInflationRate = 0.055; // 5.5% estimated inflation
+
     slicedData.forEach((point) => {
         exchangeRates.push(point.exchangeRate);
 
@@ -135,21 +140,154 @@ function renderChart(startIndex) {
         // Calculate the total MXN value of your entire Bitcoin stash at this month's price
         const currentBtcPortfolioValueMxn = accumulatedBtcAmount * point.btcPriceMxn;
         btcPortfolioValue.push(currentBtcPortfolioValueMxn);
+
+        // Mattress Math - Add the cash, but subtract the monthly inflation penalty
+        mattressPurchasingPower = (mattressPurchasingPower + monthlyContributionMxn) * (1 - (annualInflationRate / 12));
     });
 
     // Pass the DCA arrays into the canvas
-    updateCanvas(labels, aforeGrowth, cetesGrowth, btcPortfolioValue, exchangeRates, slicedData);
+    //updateCanvas(labels, aforeGrowth, cetesGrowth, btcPortfolioValue, exchangeRates, slicedData);
+    // Add the monthlyContributionMxn as the final argument
+    updateCanvas(labels, aforeGrowth, cetesGrowth, btcPortfolioValue, exchangeRates, slicedData, monthlyContributionMxn);
+
+    // Grab the final values at the end of the simulation and draw the Bar Chart
+    const totalInvestedOutofPocket = slicedData.length * monthlyContributionMxn;
+    const finalAfore = aforeGrowth[aforeGrowth.length - 1];
+    const finalCetes = cetesGrowth[cetesGrowth.length - 1];
+    const finalBtc = btcPortfolioValue[btcPortfolioValue.length - 1];
 
     document.getElementById('dateLabel').innerHTML = `<strong>Start Date:</strong> ${labels[0]}`;
+
+    updateBarChart(totalInvestedOutofPocket, mattressPurchasingPower, finalAfore, finalCetes, finalBtc);
 }
 
 // 4. Chart.js Implementation with Secondary Y-Axis
-function updateCanvas(labels, aforeData, cetesData, btcData, exchangeData, rawDataReference) {
+//function updateCanvas(labels, aforeData, cetesData, btcData, exchangeData, rawDataReference) {
+//    const ctx = document.getElementById('investmentChart').getContext('2d');
+//
+//    if (chartInstance) {
+//        chartInstance.destroy();
+//    }
+//
+//    chartInstance = new Chart(ctx, {
+//        type: 'line',
+//        data: {
+//            labels: labels,
+//            datasets: [
+//                {
+//                    label: 'Bitcoin Growth (Indexed)',
+//                    data: btcData,
+//                    borderColor: '#f39c12',
+//                    backgroundColor: 'rgba(243, 156, 18, 0.1)',
+//                    borderWidth: 2,
+//                    fill: true,
+//                    tension: 0.1,
+//                    yAxisID: 'y' // Maps to the left axis
+//                },
+//                {
+//                    label: 'CETES 28d Compounded',
+//                    data: cetesData,
+//                    borderColor: '#27ae60',
+//                    borderWidth: 2,
+//                    tension: 0.1,
+//                    yAxisID: 'y'
+//                },
+//                {
+//                    label: 'AFORE',
+//                    data: aforeData,
+//                    borderColor: '#2980b9',
+//                    borderWidth: 2,
+//                    tension: 0.1,
+//                    yAxisID: 'y'
+//                },
+//                {
+//                    label: 'USD/MXN Exchange Rate',
+//                    data: exchangeData,
+//                    borderColor: '#8e44ad', // A distinct purple
+//                    borderDash: [5, 5], // Makes it a dashed line to differentiate from investments
+//                    borderWidth: 2,
+//                    tension: 0.1,
+//                    yAxisID: 'y1', // NEW: Maps to the right axis
+//                    pointRadius: 0 // Hides the dots to keep the chart clean
+//                }
+//            ]
+//        },
+//        options: {
+//            responsive: true,
+//            maintainAspectRatio: false,
+//            interaction: {
+//                mode: 'index',
+//                intersect: false,
+//            },
+//            plugins: {
+//                tooltip: {
+//                    callbacks: {
+//                        label: function(context) {
+//                            let label = context.dataset.label || '';
+//                            if (label) {
+//                                label += ': ';
+//                            }
+//                            // Format exchange rate differently than indexed points
+//                            if (context.datasetIndex === 3) {
+//                                label += '$' + context.parsed.y.toFixed(2) + ' MXN';
+//                            } else {
+//                                label += context.parsed.y.toFixed(2) + ' pts';
+//                            }
+//                            return label;
+//                        },
+//                        afterLabel: function(context) {
+//                            if (context.datasetIndex === 0) {
+//                                const index = context.dataIndex;
+//                                const specificMonthData = rawDataReference[index];
+//
+//                                const mxnPrice = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(specificMonthData.btcPriceMxn);
+//                                const usdPrice = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(specificMonthData.btcPriceUsd);
+//
+//                                return [
+//                                    `→ Actual Price: ${mxnPrice}`,
+//                                    `→ USD Price: ${usdPrice}`
+//                                ];
+//                            }
+//                            return null;
+//                        }
+//                    }
+//                }
+//            },
+//             scales: {
+//                y: {
+//                    type: 'linear',
+//                    display: true,
+//                    position: 'left',
+//                    title: { display: true, text: 'Total Portfolio Value (MXN)' }, // <-- UPDATE THIS
+//                    ticks: {
+//                        callback: function(value) {
+//                            return '$' + value.toLocaleString(); // Adds commas to the axis numbers
+//                        }
+//                    }
+//                },
+//                y1: {
+//                    type: 'linear',
+//                    display: true,
+//                    position: 'right',
+//                    title: { display: true, text: 'USD/MXN Exchange Rate' },
+//                    grid: {
+//                        drawOnChartArea: false, // Prevents right-axis grid lines from overlapping left-axis lines
+//                    }
+//                }
+//            }
+//        }
+//    });
+//}
+// 4. Chart.js Implementation with Advanced DCA Tooltips
+function updateCanvas(labels, aforeData, cetesData, btcData, exchangeData, rawDataReference, monthlyContributionMxn) {
     const ctx = document.getElementById('investmentChart').getContext('2d');
 
     if (chartInstance) {
         chartInstance.destroy();
     }
+
+    // Currency formatter for clean Mexican Peso visuals
+    const mxnFormatter = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' });
 
     chartInstance = new Chart(ctx, {
         type: 'line',
@@ -157,14 +295,14 @@ function updateCanvas(labels, aforeData, cetesData, btcData, exchangeData, rawDa
             labels: labels,
             datasets: [
                 {
-                    label: 'Bitcoin Growth (Indexed)',
+                    label: 'Bitcoin Portfolio',
                     data: btcData,
                     borderColor: '#f39c12',
                     backgroundColor: 'rgba(243, 156, 18, 0.1)',
                     borderWidth: 2,
                     fill: true,
                     tension: 0.1,
-                    yAxisID: 'y' // Maps to the left axis
+                    yAxisID: 'y'
                 },
                 {
                     label: 'CETES 28d Compounded',
@@ -185,12 +323,12 @@ function updateCanvas(labels, aforeData, cetesData, btcData, exchangeData, rawDa
                 {
                     label: 'USD/MXN Exchange Rate',
                     data: exchangeData,
-                    borderColor: '#8e44ad', // A distinct purple
-                    borderDash: [5, 5], // Makes it a dashed line to differentiate from investments
+                    borderColor: '#8e44ad',
+                    borderDash: [5, 5],
                     borderWidth: 2,
                     tension: 0.1,
-                    yAxisID: 'y1', // NEW: Maps to the right axis
-                    pointRadius: 0 // Hides the dots to keep the chart clean
+                    yAxisID: 'y1',
+                    pointRadius: 0
                 }
             ]
         },
@@ -206,44 +344,54 @@ function updateCanvas(labels, aforeData, cetesData, btcData, exchangeData, rawDa
                     callbacks: {
                         label: function(context) {
                             let label = context.dataset.label || '';
-                            if (label) {
-                                label += ': ';
-                            }
-                            // Format exchange rate differently than indexed points
+                            if (label) label += ': ';
+
                             if (context.datasetIndex === 3) {
                                 label += '$' + context.parsed.y.toFixed(2) + ' MXN';
                             } else {
-                                label += context.parsed.y.toFixed(2) + ' pts';
+                                label += mxnFormatter.format(context.parsed.y);
                             }
                             return label;
                         },
                         afterLabel: function(context) {
+                            // Skip extra math for the exchange rate line
+                            if (context.datasetIndex === 3) return null;
+
+                            const index = context.dataIndex;
+                            const currentValue = context.parsed.y;
+
+                            // MATH: (Index + 1) gives us the number of months that have passed
+                            const totalInvested = (index + 1) * monthlyContributionMxn;
+                            const profitOrLoss = currentValue - totalInvested;
+                            const profitMargin = (profitOrLoss / totalInvested) * 100;
+
+                            // Build the multi-line tooltip array
+                            let tooltipLines = [
+                                `→ Total Out-of-Pocket: ${mxnFormatter.format(totalInvested)}`,
+                                `→ Profit/Loss: ${mxnFormatter.format(profitOrLoss)} (${profitMargin > 0 ? '+' : ''}${profitMargin.toFixed(2)}%)`
+                            ];
+
+                            // If hovering over Bitcoin, append the spot price info too
                             if (context.datasetIndex === 0) {
-                                const index = context.dataIndex;
                                 const specificMonthData = rawDataReference[index];
-
-                                const mxnPrice = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(specificMonthData.btcPriceMxn);
-                                const usdPrice = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(specificMonthData.btcPriceUsd);
-
-                                return [
-                                    `→ Actual Price: ${mxnPrice}`,
-                                    `→ USD Price: ${usdPrice}`
-                                ];
+                                const btcSpotMxn = mxnFormatter.format(specificMonthData.btcPriceMxn);
+                                tooltipLines.push(`→ BTC Spot Price: ${btcSpotMxn}`);
                             }
-                            return null;
+
+                            return tooltipLines;
                         }
                     }
                 }
             },
-             scales: {
+            scales: {
                 y: {
                     type: 'linear',
                     display: true,
                     position: 'left',
-                    title: { display: true, text: 'Total Portfolio Value (MXN)' }, // <-- UPDATE THIS
+                    title: { display: true, text: 'Total Portfolio Value (MXN)' },
                     ticks: {
                         callback: function(value) {
-                            return '$' + value.toLocaleString(); // Adds commas to the axis numbers
+                            return mxnFormatter.format(value);
                         }
                     }
                 },
@@ -252,8 +400,96 @@ function updateCanvas(labels, aforeData, cetesData, btcData, exchangeData, rawDa
                     display: true,
                     position: 'right',
                     title: { display: true, text: 'USD/MXN Exchange Rate' },
-                    grid: {
-                        drawOnChartArea: false, // Prevents right-axis grid lines from overlapping left-axis lines
+                    grid: { drawOnChartArea: false }
+                }
+            }
+        }
+    });
+}
+
+function updateBarChart(totalInvested, mattressValue, aforeValue, cetesValue, btcValue) {
+    const ctx = document.getElementById('summaryBarChart').getContext('2d');
+
+    if (barChartInstance) {
+        barChartInstance.destroy();
+    }
+
+    const mxnFormatter = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' });
+
+    barChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: ['The Mattress (Cash)', 'AFORE', 'CETES 28d', 'Bitcoin DCA'],
+            datasets: [
+                {
+                    // THE BASELINE: A line representing the raw cash put in
+                    type: 'line',
+                    label: 'Total Cash Saved (Out of Pocket)',
+                    data: [totalInvested, totalInvested, totalInvested, totalInvested],
+                    borderColor: '#2c3e50',
+                    borderWidth: 3,
+                    borderDash: [10, 5],
+                    fill: false,
+                    pointRadius: 0
+                },
+                {
+                    // THE BARS: The actual current value of those assets
+                    type: 'bar',
+                    label: 'Purchasing Power Today',
+                    data: [mattressValue, aforeValue, cetesValue, btcValue],
+                    backgroundColor: [
+                        '#e74c3c', // Red for Mattress (loss)
+                        'rgba(41, 128, 185, 0.7)', // Blue for AFORE
+                        'rgba(39, 174, 96, 0.7)', // Green for CETES
+                        'rgba(243, 156, 18, 0.8)'  // Orange for Bitcoin
+                    ],
+                    borderColor: [
+                        '#c0392b',
+                        '#2980b9',
+                        '#27ae60',
+                        '#f39c12'
+                    ],
+                    borderWidth: 2,
+                    borderRadius: 4
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'The Cost of Doing Nothing (Final Value vs. Inflation)',
+                    font: { size: 16 }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.dataset.label + ': ' + mxnFormatter.format(context.parsed.y);
+                        },
+                        afterLabel: function(context) {
+                            // Only calculate profit/loss for the Bars, not the dotted line
+                            if (context.dataset.type === 'line') return null;
+
+                            const currentValue = context.parsed.y;
+                            const difference = currentValue - totalInvested;
+                            const percentage = ((difference / totalInvested) * 100).toFixed(2);
+
+                            if (difference < 0) {
+                                return `→ Invisible Thief (Inflation): Lost ${mxnFormatter.format(Math.abs(difference))} in purchasing power.`;
+                            } else {
+                                return `→ Wealth Built: +${mxnFormatter.format(difference)} (+${percentage}%)`;
+                            }
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    title: { display: true, text: 'Value (MXN)' },
+                    ticks: {
+                        callback: function(value) { return mxnFormatter.format(value); }
                     }
                 }
             }
@@ -268,7 +504,7 @@ document.getElementById('timeSlider').addEventListener('input', (e) => {
     const calculatedIndex = Math.floor((e.target.value / 100) * maxIndex);
     renderChart(calculatedIndex);
 });
-// NEW: Listen for changes on the custom investment input
+// Listen for changes on the custom investment input
 document.getElementById('monthlyInvestment').addEventListener('input', () => {
     // Re-calculate the current index based on where the slider currently is
     const sliderValue = document.getElementById('timeSlider').value;
