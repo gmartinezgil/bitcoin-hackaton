@@ -101,39 +101,45 @@ function renderChart(startIndex) {
 
     const labels = slicedData.map(d => d.month);
 
-    // We now index based on the MXN value of Bitcoin, not USD!
-    const btcStartPriceMxn = slicedData[0].btcPriceMxn;
+    // NEW: Dynamically grab the amount the user typed in the box
+    const userInput = document.getElementById('monthlyInvestment').value;
+    // Fallback to 1000 if they delete everything in the box to avoid math errors
+    const monthlyContributionMxn = parseFloat(userInput) || 1000;
 
     const aforeGrowth = [];
     const cetesGrowth = [];
-    const btcIndexed = [];
-    const exchangeRates = []; // NEW: Array for the exchange rate
+    const btcPortfolioValue = [];
+    const exchangeRates = [];
 
-    let currentAforeValue = 100;
-    let currentCetesValue = 100;
+    // Running totals
+    let totalAforeBalance = 0;
+    let totalCetesBalance = 0;
+    let accumulatedBtcAmount = 0; // The actual fraction of a coin you own
 
-    slicedData.forEach((point, i) => {
-        // Always push the raw exchange rate, regardless of index
+    slicedData.forEach((point) => {
         exchangeRates.push(point.exchangeRate);
-        if (i === 0) {
-            aforeGrowth.push(100);
-            cetesGrowth.push(100);
-            btcIndexed.push(100);
-            return;
-        }
 
-        currentAforeValue *= (1 + (point.aforeReturn / 100) / 12);
-        currentCetesValue *= (1 + (point.cetesRate / 100) / 12);
+        // 1. AFORE & CETES DCA Math
+        // Add the $1,000 contribution, then apply that month's interest rate
+        totalAforeBalance = (totalAforeBalance + monthlyContributionMxn) * (1 + (point.aforeReturn / 100) / 12);
+        totalCetesBalance = (totalCetesBalance + monthlyContributionMxn) * (1 + (point.cetesRate / 100) / 12);
 
-        aforeGrowth.push(currentAforeValue);
-        cetesGrowth.push(currentCetesValue);
+        aforeGrowth.push(totalAforeBalance);
+        cetesGrowth.push(totalCetesBalance);
 
-        // Calculate indexed growth using the Peso value
-        btcIndexed.push((point.btcPriceMxn / btcStartPriceMxn) * 100);
+        // 2. Bitcoin DCA Math
+        // Calculate how much fraction of a Bitcoin $1,000 MXN buys this month
+        const btcBoughtThisMonth = monthlyContributionMxn / point.btcPriceMxn;
+        accumulatedBtcAmount += btcBoughtThisMonth;
+
+        // Calculate the total MXN value of your entire Bitcoin stash at this month's price
+        const currentBtcPortfolioValueMxn = accumulatedBtcAmount * point.btcPriceMxn;
+        btcPortfolioValue.push(currentBtcPortfolioValueMxn);
     });
 
-    //updateCanvas(labels, aforeGrowth, cetesGrowth, btcIndexed, slicedData);
-    updateCanvas(labels, aforeGrowth, cetesGrowth, btcIndexed, exchangeRates, slicedData);
+    // Pass the DCA arrays into the canvas
+    updateCanvas(labels, aforeGrowth, cetesGrowth, btcPortfolioValue, exchangeRates, slicedData);
+
     document.getElementById('dateLabel').innerHTML = `<strong>Start Date:</strong> ${labels[0]}`;
 }
 
@@ -229,12 +235,17 @@ function updateCanvas(labels, aforeData, cetesData, btcData, exchangeData, rawDa
                     }
                 }
             },
-            scales: {
+             scales: {
                 y: {
                     type: 'linear',
                     display: true,
                     position: 'left',
-                    title: { display: true, text: 'Indexed Value (Base 100)' }
+                    title: { display: true, text: 'Total Portfolio Value (MXN)' }, // <-- UPDATE THIS
+                    ticks: {
+                        callback: function(value) {
+                            return '$' + value.toLocaleString(); // Adds commas to the axis numbers
+                        }
+                    }
                 },
                 y1: {
                     type: 'linear',
@@ -255,6 +266,16 @@ document.getElementById('timeSlider').addEventListener('input', (e) => {
     // Convert 0-100 range to actual array index
     const maxIndex = normalizedData.length - 2; // Keep at least 2 data points visible
     const calculatedIndex = Math.floor((e.target.value / 100) * maxIndex);
+    renderChart(calculatedIndex);
+});
+// NEW: Listen for changes on the custom investment input
+document.getElementById('monthlyInvestment').addEventListener('input', () => {
+    // Re-calculate the current index based on where the slider currently is
+    const sliderValue = document.getElementById('timeSlider').value;
+    const maxIndex = normalizedData.length - 2;
+    const calculatedIndex = Math.floor((sliderValue / 100) * maxIndex);
+
+    // Redraw the chart with the new investment amount
     renderChart(calculatedIndex);
 });
 

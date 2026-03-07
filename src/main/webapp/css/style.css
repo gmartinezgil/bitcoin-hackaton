@@ -79,3 +79,23 @@ input[type=range] {
     border: 1px solid #e9ecef;
     font-size: 0.95rem;
 }
+.input-group {
+    margin-bottom: 15px;
+    font-size: 1.1rem;
+}
+
+#monthlyInvestment {
+    padding: 8px 12px;
+    font-size: 1.05rem;
+    border: 2px solid #bdc3c7;
+    border-radius: 6px;
+    width: 140px;
+    font-weight: bold;
+    color: #2c3e50;
+    transition: border-color 0.3s;
+}
+
+#monthlyInvestment:focus {
+    border-color: var(--accent);
+    outline: none;
+}
