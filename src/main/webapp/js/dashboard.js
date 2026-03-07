@@ -1,6 +1,7 @@
 let chartInstance = null;
 let normalizedData = [];
 let barChartInstance = null;
+let independenceChartInstance = null;
 
 // 1. Fetch data from the Java Backend
 async function initDashboard() {
@@ -515,5 +516,125 @@ document.getElementById('monthlyInvestment').addEventListener('input', () => {
     renderChart(calculatedIndex);
 });
 
+function renderIndependenceChart() {
+    // 1. Get user goals
+    const targetMonthlyIncome = parseFloat(document.getElementById('targetIncome').value) || 30000;
+    const years = parseFloat(document.getElementById('yearsToRetire').value) || 20;
+
+    // 2. The Rule of 25 to find the Target Nest Egg
+    const targetNestEgg = targetMonthlyIncome * 12 * 25;
+    const totalMonths = years * 12;
+
+    // 3. Projected Average Annual Real Returns (Adjusted for Inflation)
+    // These are conservative estimates for the future, not guarantees.
+    const rates = {
+        mattress: 0.0,      // 0% growth
+        cetes: 0.03,        // 3% real return
+        afore: 0.05,        // 5% real return
+        bitcoin: 0.15       // 15% conservative real return for maturity phase
+    };
+
+    // Helper function to calculate PMT
+    function calculateRequiredMonthly(rateAnnual, target, months) {
+        if (rateAnnual === 0) return target / months;
+        const rMonthly = rateAnnual / 12;
+        return (target * rMonthly) / (Math.pow(1 + rMonthly, months) - 1);
+    }
+
+    const reqMattress = calculateRequiredMonthly(rates.mattress, targetNestEgg, totalMonths);
+    const reqCetes = calculateRequiredMonthly(rates.cetes, targetNestEgg, totalMonths);
+    const reqAfore = calculateRequiredMonthly(rates.afore, targetNestEgg, totalMonths);
+    const reqBitcoin = calculateRequiredMonthly(rates.bitcoin, targetNestEgg, totalMonths);
+
+    // 4. Draw the Chart
+    const ctx = document.getElementById('independenceChart').getContext('2d');
+    if (independenceChartInstance) independenceChartInstance.destroy();
+
+    const mxnFormatter = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' });
+
+    independenceChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: ['The Mattress (Cash)', 'CETES 28d', 'AFORE', 'Bitcoin DCA'],
+            datasets: [{
+                label: 'Required Monthly Savings (MXN)',
+                data: [reqMattress, reqCetes, reqAfore, reqBitcoin],
+                backgroundColor: ['#e74c3c', '#27ae60', '#2980b9', '#f39c12'],
+                borderRadius: 4
+            }]
+        },
+        options: {
+            indexAxis: 'y', // Makes the bar chart horizontal
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                title: {
+                    display: true,
+                    text: `Target: ${mxnFormatter.format(targetNestEgg)} Nest Egg in ${years} Years`,
+                    font: { size: 16 }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return 'You must save: ' + mxnFormatter.format(context.parsed.x) + ' every month';
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    title: { display: true, text: 'Required Monthly Contribution (MXN)' },
+                    ticks: { callback: function(value) { return mxnFormatter.format(value); } }
+                }
+            }
+        }
+    });
+}
+
+// Listeners for the new inputs
+document.getElementById('targetIncome').addEventListener('input', renderIndependenceChart);
+document.getElementById('yearsToRetire').addEventListener('input', renderIndependenceChart);
+
+// --- EXPORT TO IMAGE FEATURE ---
+document.getElementById('downloadBtn').addEventListener('click', function() {
+    const dashboardElement = document.querySelector('.dashboard-container');
+    const originalBtnText = this.innerText;
+
+    // UI Feedback
+    this.innerText = "📸 Generating Image...";
+    this.disabled = true;
+
+    // Use html2canvas to capture the DOM element
+    html2canvas(dashboardElement, {
+        scale: 2, // Increases the resolution for high-quality mobile viewing
+        backgroundColor: '#f8f9fa',
+        useCORS: true // Ensures the Chart.js canvas renders correctly
+    }).then(canvas => {
+        // Convert the canvas to a Base64 image URL
+        const imgData = canvas.toDataURL("image/png");
+
+        // Create a temporary link to trigger the download
+        const link = document.createElement('a');
+        link.href = imgData;
+        link.download = 'My_Financial_Independence_Plan.png';
+
+        // Append, click, and remove
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        // Restore UI
+        this.innerText = originalBtnText;
+        this.disabled = false;
+    }).catch(err => {
+        console.error("Error generating image:", err);
+        alert("Failed to generate the infographic. Please try again.");
+        this.innerText = originalBtnText;
+        this.disabled = false;
+    });
+});
+
 // Start the app
 initDashboard();
+// Initialize it on load
+renderIndependenceChart();

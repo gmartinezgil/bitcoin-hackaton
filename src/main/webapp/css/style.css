@@ -16,12 +16,18 @@ body {
 }
 
 .dashboard-container {
-    width: 90%;
-    max-width: 1200px;
+    width: 95%;
+    max-width: 1000px; /* Keeps the charts from stretching too wide on big screens */
+    margin: 40px auto; /* Centers the whole page and adds breathing room */
     background: var(--card-bg);
-    padding: 30px;
+    padding: 40px;
     border-radius: 12px;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+
+    /* THE MAGIC FIX: Forces a single vertical column */
+    display: flex;
+    flex-direction: column;
+    gap: 60px; /* Creates consistent, clean space between every section */
 }
 
 .header {
@@ -31,8 +37,14 @@ body {
 
 .chart-wrapper {
     position: relative;
-    height: 60vh;
     width: 100%;
+    height: 55vh; /* Gives the main chart plenty of room */
+    min-height: 450px;
+}
+
+.summary-wrapper {
+    height: 40vh; /* Makes the bar charts slightly shorter than the main line chart */
+    min-height: 350px;
 }
 
 .controls {
