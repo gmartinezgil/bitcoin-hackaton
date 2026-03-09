@@ -3,6 +3,21 @@ let normalizedData = [];
 let barChartInstance = null;
 let independenceChartInstance = null;
 
+// --- TAB NAVIGATION LOGIC ---
+function openTab(event, tabId) {
+    // 1. Hide all tab content boxes
+    const contents = document.querySelectorAll('.tab-content');
+    contents.forEach(content => content.classList.remove('active'));
+
+    // 2. Remove the 'active' highlight from all buttons
+    const buttons = document.querySelectorAll('.tab-btn');
+    buttons.forEach(btn => btn.classList.remove('active'));
+
+    // 3. Show the target tab and highlight the clicked button
+    document.getElementById(tabId).classList.add('active');
+    event.currentTarget.classList.add('active');
+}
+
 // 1. Fetch data from the Java Backend
 async function initDashboard() {
     try {
@@ -596,39 +611,71 @@ document.getElementById('targetIncome').addEventListener('input', renderIndepend
 document.getElementById('yearsToRetire').addEventListener('input', renderIndependenceChart);
 
 // --- EXPORT TO IMAGE FEATURE ---
+// --- EXPORT TO IMAGE FEATURE (With Watermark & UI Hiding) ---
 document.getElementById('downloadBtn').addEventListener('click', function() {
     const dashboardElement = document.querySelector('.dashboard-container');
     const originalBtnText = this.innerText;
 
-    // UI Feedback
+    // 1. Identify the UI clutter we want to hide in the final image
+    const tabNav = document.querySelector('.tab-navigation');
+    const exportBtnContainer = this.parentElement;
+
+    // 2. Dynamically create the Watermark
+    let watermark = document.getElementById('export-watermark');
+    if (!watermark) {
+        watermark = document.createElement('div');
+        watermark.id = 'export-watermark';
+        watermark.style.textAlign = 'right';
+        watermark.style.color = '#95a5a6';
+        watermark.style.fontSize = '0.9rem';
+        watermark.style.marginTop = '25px';
+        watermark.style.paddingTop = '15px';
+        watermark.style.borderTop = '1px solid #ecf0f1';
+        watermark.style.fontStyle = 'italic';
+        // Feel free to customize this text!
+        watermark.innerHTML = '<strong>📊 Powered by BitInvestment</strong> | Real Historical Data';
+        dashboardElement.appendChild(watermark);
+    }
+
+    // 3. Prepare the DOM for the screenshot (Hide UI, Show Watermark)
     this.innerText = "📸 Generating Image...";
     this.disabled = true;
 
-    // Use html2canvas to capture the DOM element
-    html2canvas(dashboardElement, {
-        scale: 2, // Increases the resolution for high-quality mobile viewing
-        backgroundColor: '#f8f9fa',
-        useCORS: true // Ensures the Chart.js canvas renders correctly
-    }).then(canvas => {
-        // Convert the canvas to a Base64 image URL
-        const imgData = canvas.toDataURL("image/png");
+    tabNav.style.display = 'none'; // Hides the top tab buttons
+    exportBtnContainer.style.display = 'none'; // Hides the download button
+    watermark.style.display = 'block'; // Reveals the watermark
 
-        // Create a temporary link to trigger the download
+    // 4. Take the screenshot using HTML2Canvas
+    html2canvas(dashboardElement, {
+        scale: 2, // High resolution
+        backgroundColor: '#ffffff', // Pure white background looks better for saved images
+        useCORS: true
+    }).then(canvas => {
+        // Convert and trigger download
+        const imgData = canvas.toDataURL("image/png");
         const link = document.createElement('a');
         link.href = imgData;
-        link.download = 'My_Financial_Independence_Plan.png';
+        link.download = 'Financial_Analysis_Report.png';
 
-        // Append, click, and remove
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
 
-        // Restore UI
+        // 5. Instantly restore the UI back to normal
+        tabNav.style.display = 'flex';
+        exportBtnContainer.style.display = 'block';
+        watermark.style.display = 'none';
         this.innerText = originalBtnText;
         this.disabled = false;
+
     }).catch(err => {
         console.error("Error generating image:", err);
         alert("Failed to generate the infographic. Please try again.");
+
+        // Ensure UI restores even if it fails
+        tabNav.style.display = 'flex';
+        exportBtnContainer.style.display = 'block';
+        watermark.style.display = 'none';
         this.innerText = originalBtnText;
         this.disabled = false;
     });
