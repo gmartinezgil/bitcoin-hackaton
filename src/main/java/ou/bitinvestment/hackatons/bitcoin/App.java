@@ -5,6 +5,7 @@ package ou.bitinvestment.hackatons.bitcoin;
  */
 
 import org.apache.catalina.Context;
+import org.apache.catalina.connector.Connector;
 import org.apache.catalina.startup.Tomcat;
 import ou.bitinvestment.hackatons.bitcoin.web.ComparisonServlet;
 
@@ -15,11 +16,20 @@ public class App {
         try {
             // 1. Initialize Tomcat
             Tomcat tomcat = new Tomcat();
-
             // 2. Set the port (e.g., 8080)
             int port = 8080;
             tomcat.setPort(port);
-            tomcat.getConnector(); // Triggers the creation of the default HTTP connector
+
+            // Get the HTTP Connector
+            Connector connector = tomcat.getConnector(); // Triggers the creation of the default HTTP connector
+            // Enable GZIP Compression
+            connector.setProperty("compression", "on");
+            // Set the minimum file size to compress (2048 bytes = 2KB)
+            // Compressing tiny files actually wastes CPU, so we only compress larger payloads
+            connector.setProperty("compressionMinSize", "2048");
+            // Tell Tomcat WHICH file types to compress
+            // We specifically include application/json for our REST API, and standard web files
+            connector.setProperty("compressableMimeType", "text/html,text/xml,text/plain,text/css,text/javascript,application/javascript,application/json");
 
             // 3. Define where the frontend files and WEB-INF are located
             String webappDirLocation = "src/main/webapp/";
